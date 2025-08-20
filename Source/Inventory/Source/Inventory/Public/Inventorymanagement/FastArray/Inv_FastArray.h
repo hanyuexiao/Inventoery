@@ -75,5 +75,5 @@ private:
 template<>
 struct TStructOpsTypeTraits<FInv_InventoryFastArray> : public TStructOpsTypeTraitsBase2<FInv_InventoryFastArray>
 {
-	enum { WithNetDeltaSerialize = true};
+	enum { WithNetDeltaSerializer = true};
 };

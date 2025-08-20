@@ -45,6 +45,6 @@ struct FInv_SlotAvailabilityResult
 	//最总还剩下多少Item放不下
 	int32 Remainder{0};
 	//该Item是否可以堆叠？
-	bool bStackeable{false};
-	TArray<FInv_SlotAvaliability> SlotAvaliabilities;
+	bool bStackable{false};
+	TArray<FInv_SlotAvaliability> SlotAvailabilities;
 };

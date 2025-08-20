@@ -39,7 +39,7 @@ void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 		return;
 	}
 
-	if (Result.ExistingItem.IsValid() && Result.bStackeable)
+	if (Result.ExistingItem.IsValid() && Result.bStackable)
 	{
 		//Add stacks to an item that already exists in the inventory.We only want to update the stack count.
 		//not creat a new item of this type
@@ -49,7 +49,7 @@ void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 	{
 		//创建新的背包网格给新物品
 		//This item type doesn't exist in the inventory. Creat a new one and update all pertinent slots
-		Server_AddNewItem(ItemComponent,Result.bStackeable ? Result.TotalRoomToFill : 0);
+		Server_AddNewItem(ItemComponent,Result.bStackable ? Result.TotalRoomToFill : 0);
 	}
 	
 }
@@ -58,6 +58,7 @@ void UInv_InventoryComponent::Server_AddNewItem_Implementation(UInv_ItemComponen
 {
 	UInv_InventoryItem* NewItem  = InventoryList.AddEntry(ItemComponent);
 
+	// NM_ListenServer 和 NM_Standalone都是什么？
 	if (GetOwner() -> GetNetMode() == NM_ListenServer || GetOwner() -> GetNetMode() == NM_Standalone)
 	{
 		OnItemAdded.Broadcast(NewItem);

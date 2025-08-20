@@ -7,9 +7,15 @@
 #include "Types/Inv_GridTypes.h"
 #include "Inv_InventoryGrid.generated.h"
 
-class UInv_InventoryComponent;
+
+struct FInv_ImageFragment;
+struct FInv_GridFragment;
+class UInv_SlottedItem;
+class UInv_ItemComponent;
+struct FInv_ItemManifest;
 class UCanvasPanel;
 class UInv_GridSlot;
+class UInv_InventoryComponent;
 /**
  * 
  */
@@ -23,7 +29,8 @@ public:
 	virtual void NativeOnInitialized() override;
 	
 	EInv_ItemCategory GetItemCategory() const {return ItemCategory; }
-
+	FInv_SlotAvailabilityResult HasRoomForItem(const UInv_ItemComponent* ItemComponent);
+	
 	UFUNCTION()
 	void AddItem(UInv_InventoryItem* Item);
 	
@@ -32,7 +39,33 @@ private:
 	TWeakObjectPtr<UInv_InventoryComponent> InventoryComponent;
 	
 	void ConstructGrid();
+	FInv_SlotAvailabilityResult HasRoomForItem(const UInv_InventoryItem* Item);
+	FInv_SlotAvailabilityResult HasRoomForItem(const FInv_ItemManifest& Manifest);
+
+	void AddItemToIndices(const FInv_SlotAvailabilityResult& Result,UInv_InventoryItem* NewItem);
+	bool MatchesCategory(const UInv_InventoryItem* Item) const;
+	FVector2D GetDrawSize(const FInv_GridFragment* GridFragment) const;
+	void SetSlottedItemImage(const UInv_SlottedItem* SlottedItem,
+							const FInv_GridFragment* GridFragment,
+							const FInv_ImageFragment* ImageFragment) const;
+	void AddItemAtIndex(UInv_InventoryItem* Item,
+						const int32 Index,
+						const bool bStackable,
+						const int32 StackAmount);
 	
+	void AddSlottedItemToCanvas(const int32 Index,
+								const FInv_GridFragment* GridFragment,
+								UInv_SlottedItem* SlottedItem) const;
+
+	
+	UInv_SlottedItem* CreateSlottedItem(UInv_InventoryItem* Item,
+		const bool bStackable,
+		const int32 StackAmount,
+		const FInv_GridFragment* GridFragment,
+		const FInv_ImageFragment* ImageFragment,
+		const int32 Index);
+
+	//背包所属于哪一个种类
 	UPROPERTY(EditAnywhere,BlueprintReadOnly,meta=(AllowPrivateAccess = "true"),Category = "Inventory")
 	EInv_ItemCategory ItemCategory;
 
@@ -44,6 +77,12 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UCanvasPanel> CanvasPanel;
+
+	UPROPERTY(EditAnywhere, Category = "Inventory")
+	TSubclassOf<UInv_SlottedItem> SlottedItemClass;
+
+	UPROPERTY()
+	TMap<int32, TObjectPtr<UInv_SlottedItem>> SlottedItems;
 	
 	UPROPERTY(EditAnywhere,Category = "Inventory")
 	int32 Rows;
@@ -53,6 +92,5 @@ private:
 	
 	UPROPERTY(EditAnywhere,Category = "Inventory")
 	float TileSize;
-
-	bool MatchesCategory(const UInv_InventoryItem* Item) const;
+	
 };
