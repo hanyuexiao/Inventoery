@@ -38,13 +38,14 @@ struct FInv_SlotAvailabilityResult
 
 	//用弱指针指向已经在背包存在的物品
 	//Why use Weak?
-	TWeakObjectPtr<UInv_InventoryItem> ExistingItem;
+	TWeakObjectPtr<UInv_InventoryItem> Item;
 	
 	//总共能放下多少Item
 	int32 TotalRoomToFill{0};
 	//最总还剩下多少Item放不下
 	int32 Remainder{0};
 	//该Item是否可以堆叠？
-	bool bStackeable{false};
-	TArray<FInv_SlotAvaliability> SlotAvaliabilities;
+	bool bStackable{false};
+	 
+	TArray<FInv_SlotAvaliability> SlotAvailabilities;
 };

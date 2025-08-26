@@ -7,8 +7,17 @@
 #include "Types/Inv_GridTypes.h"
 #include "Inv_InventoryGrid.generated.h"
 
+
+struct FGameplayTag;
+struct FInv_ImageFragment;
+struct FInv_GridFragment;
+class UInv_SlottedItem;
+class UInv_ItemComponent;
+struct FInv_ItemManifest;
 class UCanvasPanel;
 class UInv_GridSlot;
+class UInv_InventoryComponent;
+
 /**
  * 
  */
@@ -22,11 +31,63 @@ public:
 	virtual void NativeOnInitialized() override;
 	
 	EInv_ItemCategory GetItemCategory() const {return ItemCategory; }
+	FInv_SlotAvailabilityResult HasRoomForItem(const UInv_ItemComponent* ItemComponent);
+	
+	UFUNCTION()
+	void AddItem(UInv_InventoryItem* Item);
 	
 private:
 
-	void ConstructGrid();
+	TWeakObjectPtr<UInv_InventoryComponent> InventoryComponent;
 	
+	void ConstructGrid();
+	FInv_SlotAvailabilityResult HasRoomForItem(const UInv_InventoryItem* Item);
+	FInv_SlotAvailabilityResult HasRoomForItem(const FInv_ItemManifest& Manifest);
+
+	void AddItemToIndices(const FInv_SlotAvailabilityResult& Result,UInv_InventoryItem* NewItem);
+	bool MatchesCategory(const UInv_InventoryItem* Item) const;
+	FVector2D GetDrawSize(const FInv_GridFragment* GridFragment) const;
+	void SetSlottedItemImage(const UInv_SlottedItem* SlottedItem,
+							const FInv_GridFragment* GridFragment,
+							const FInv_ImageFragment* ImageFragment) const;
+	void AddItemAtIndex(UInv_InventoryItem* Item,
+						const int32 Index,
+						const bool bStackable,
+						const int32 StackAmount);
+	
+	void AddSlottedItemToCanvas(const int32 Index,
+								const FInv_GridFragment* GridFragment,
+								UInv_SlottedItem* SlottedItem) const;
+
+	void UpdateGridSlots(UInv_InventoryItem* NewItem,const int32 Index,bool bStackableItem,const int32 StackAmount);
+	bool IsIndexClaimed(const TSet<int32>& CheckedIndices,const int32 Index) const;
+	bool HasRoomAtIndex(const UInv_GridSlot* GridSlot,
+						const FIntPoint& Dimensions,
+						const TSet<int32>& CheckedIndices,
+						TSet<int32>& TentativelyClaimed,
+						const FGameplayTag& ItemType,
+						const int32 MaxStackSize);
+	bool CheckSlotConstraints( const UInv_GridSlot* GridSlot,
+	                           const UInv_GridSlot* SubGridSlot,
+	                           const TSet<int32>& CheckedIndices,
+	                           TSet<int32>& OutTentativelyClaimed,
+	                           const FGameplayTag& ItemType,
+	                           const int32 MaxStackSize) const;
+	FIntPoint GetItemDimensions(const FInv_ItemManifest& Manifest) const;
+	bool HasValidItem(const UInv_GridSlot* GridSlot) const;
+	bool IsUpperLeftSlot(const UInv_GridSlot* GridSlot,const UInv_GridSlot* SubGridSlot) const;
+	bool DoesItemTypeMatch(const UInv_InventoryItem* SubItem,const FGameplayTag& ItemType) const;
+	bool IsInGridBounds(const int32 StartIndex,const FIntPoint& ItemDimensions) const;
+	int32 DetermineFillAmountForSlot(const bool bStackable,const int32 MaxStackSize,const int32 AmountToFill,const UInv_GridSlot* GridSlot) const;
+	int32 GetStackAmount(const UInv_GridSlot* GridSlot) const;
+	UInv_SlottedItem* CreateSlottedItem(UInv_InventoryItem* Item,
+		const bool bStackable,
+		const int32 StackAmount,
+		const FInv_GridFragment* GridFragment,
+		const FInv_ImageFragment* ImageFragment,
+		const int32 Index);
+
+	//背包所属于哪一个种类
 	UPROPERTY(EditAnywhere,BlueprintReadOnly,meta=(AllowPrivateAccess = "true"),Category = "Inventory")
 	EInv_ItemCategory ItemCategory;
 
@@ -38,6 +99,12 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UCanvasPanel> CanvasPanel;
+
+	UPROPERTY(EditAnywhere, Category = "Inventory")
+	TSubclassOf<UInv_SlottedItem> SlottedItemClass;
+
+	UPROPERTY()
+	TMap<int32, TObjectPtr<UInv_SlottedItem>> SlottedItems;
 	
 	UPROPERTY(EditAnywhere,Category = "Inventory")
 	int32 Rows;
@@ -47,4 +114,5 @@ private:
 	
 	UPROPERTY(EditAnywhere,Category = "Inventory")
 	float TileSize;
+	
 };

@@ -7,13 +7,17 @@
 #include "Items/Components/Inv_ItemComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Widgets/Inventory/InventoryBase/Inv_InventoryBase.h"
+#include "Items/Inv_InventoryItem.h"
 
 
-UInv_InventoryComponent::UInv_InventoryComponent()
+UInv_InventoryComponent::UInv_InventoryComponent() : InventoryList(this)
 {
 
 	PrimaryComponentTick.bCanEverTick = false;
+	// 第1行: 确保组件本身会被复制
 	SetIsReplicatedByDefault(true);
+	// 第2行: 【关键开关】将这个布尔值设为true，就等于告诉引擎：
+	// “除了我自己的属性，请同时留意我手动注册的一个子对象列表，并帮我同步它们。”
 	bReplicateUsingRegisteredSubObjectList = true;
 	bInventoryMenuOpen = false;
 }
@@ -27,15 +31,18 @@ void UInv_InventoryComponent::GetLifetimeReplicatedProps(TArray<class FLifetimeP
 
 void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 {
+	//本地检查
 	FInv_SlotAvailabilityResult Result = InventoryMenu->HasRoomForItem(ItemComponent);
 
+	UInv_InventoryItem* FoundItem = InventoryList.FindFirstItemByType(ItemComponent->GetItemManifest().GetItemType());
+	Result.Item = FoundItem;
 	if (Result.TotalRoomToFill == 0)
 	{
 		NoRoomInInventory.Broadcast();
 		return;
 	}
 
-	if (Result.ExistingItem.IsValid() && Result.bStackeable)
+	if (Result.Item.IsValid() && Result.bStackable)
 	{
 		//Add stacks to an item that already exists in the inventory.We only want to update the stack count.
 		//not creat a new item of this type
@@ -43,8 +50,9 @@ void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 	}
 	else if (Result.TotalRoomToFill > 0)
 	{
+		//创建新的背包网格给新物品
 		//This item type doesn't exist in the inventory. Creat a new one and update all pertinent slots
-		Server_AddNewItem(ItemComponent,Result.bStackeable ? Result.TotalRoomToFill : 0);
+		Server_AddNewItem(ItemComponent,Result.bStackable ? Result.TotalRoomToFill : 0);
 	}
 	
 }
@@ -53,20 +61,26 @@ void UInv_InventoryComponent::Server_AddNewItem_Implementation(UInv_ItemComponen
 {
 	UInv_InventoryItem* NewItem  = InventoryList.AddEntry(ItemComponent);
 
+	// NM_ListenServer 和 NM_Standalone都是什么？
+	if (GetOwner() -> GetNetMode() == NM_ListenServer || GetOwner() -> GetNetMode() == NM_Standalone)
+	{
+		OnItemAdded.Broadcast(NewItem);
+	}
+	
 	//TODO: Tell the Item Component to destroy its owning actor.
 }
 
+void UInv_InventoryComponent::Server_AddStacksToItem_Implementation(UInv_ItemComponent* ItemComponent, int32 StackCount,
+	int32 Remainder)
+{
+	
+}
 
 void UInv_InventoryComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
 	ConstructInventory();
-}
-
-void UInv_InventoryComponent::Server_AddStacksToItem_Implementation(UInv_ItemComponent* ItemComponent, int32 StackCount,
-	int32 Remainder)
-{
 }
 
 void UInv_InventoryComponent::ToggleInventoryMenu()
@@ -85,9 +99,9 @@ void UInv_InventoryComponent::AddRepSubobj(UObject* SubObj)
 {
 	if (IsUsingRegisteredSubObjectList() && IsReadyForReplication() && IsValid(SubObj))
 	{
+		//这个函数又是什么作用？ why
 		AddReplicatedSubObject(SubObj);
 	}
-	
 }
 
 void UInv_InventoryComponent::ConstructInventory()

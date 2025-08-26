@@ -60,10 +60,17 @@ UInv_InventoryItem* FInv_InventoryFastArray::AddEntry(UInv_ItemComponent* ItemCo
 	UInv_InventoryComponent* IC = Cast<UInv_InventoryComponent>(OwnerComponent);
 	if (!IsValid(IC)) return nullptr;
 
+	//传入FastArray所需要的数据格式 FInv_InventoryEntry
 	FInv_InventoryEntry& NewEntry = Entries.AddDefaulted_GetRef();
+	//   a. ItemComponent->GetItemManifest(): 从传入的ItemComponent身上，获取它的“物品清单(ItemManifest)”这个数据结构。这就是我们的“菜谱”。
+	//   b. .Manifest(OwningActor): 调用这份“菜谱”自己的工厂方法Manifest()，并告诉它，新创建的物品的Outer将是OwningActor。
+	//   c. NewEntry.Item = ...: 将Manifest()函数返回的、新创建的UInv_InventoryItem指针，赋值给我们刚刚准备好的空“盘子”NewEntry的Item成员。
 	NewEntry.Item = ItemComponent -> GetItemManifest().Manifest(OwningActor);
 
+	//在逻辑层面上对物体进行增加
 	IC->AddRepSubobj(NewEntry.Item);
+	
+	// 让服务器知道需要同步多少个物体
 	MarkItemDirty(NewEntry);
 	
 	return NewEntry.Item;
@@ -94,4 +101,13 @@ void FInv_InventoryFastArray::RemoveEntry(UInv_InventoryItem* Item)
 		}
 	}
 		
+}
+
+UInv_InventoryItem* FInv_InventoryFastArray::FindFirstItemByType(const FGameplayTag& ItemType)
+{
+	auto* FoundItem = Entries.FindByPredicate([Type = ItemType](const FInv_InventoryEntry& Entry)
+	{
+		return IsValid(Entry.Item) && Entry.Item->GetItemManifest().GetItemType().MatchesTagExact(Type);
+	});
+	return FoundItem ? FoundItem->Item : nullptr;
 }

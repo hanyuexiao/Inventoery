@@ -5,6 +5,7 @@
 
 #include "Inv_FastArray.generated.h"
 
+struct FGameplayTag;
 class UInv_ItemComponent;
 class UInv_InventoryComponent;
 class UInv_InventoryItem;
@@ -55,6 +56,7 @@ struct FInv_InventoryFastArray:public FFastArraySerializer
 	UInv_InventoryItem* AddEntry(UInv_ItemComponent* ItemComponent);
 	UInv_InventoryItem* AddEntry(UInv_InventoryItem* Item);
 	void RemoveEntry(UInv_InventoryItem* Item);
+	UInv_InventoryItem* FindFirstItemByType(const FGameplayTag& ItemType);
 	
 private:
 	friend UInv_InventoryComponent;
@@ -75,5 +77,5 @@ private:
 template<>
 struct TStructOpsTypeTraits<FInv_InventoryFastArray> : public TStructOpsTypeTraitsBase2<FInv_InventoryFastArray>
 {
-	enum { WithNetDeltaSerialize = true};
+	enum { WithNetDeltaSerializer = true};
 };

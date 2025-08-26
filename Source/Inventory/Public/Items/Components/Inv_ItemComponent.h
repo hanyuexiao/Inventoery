@@ -21,13 +21,14 @@ public:
 	FInv_ItemManifest GetItemManifest() const {return ItemManifest;}
 	
 	FString GetPickupMessage() const {return PickupMessage;}
+
 	
 protected:
 	
 public:	
 
 private:
-
+	//Replicated 关键字什么时候写入？
 	UPROPERTY(EditAnywhere,Category = "Inventory",Replicated)
 	FInv_ItemManifest ItemManifest;
 	

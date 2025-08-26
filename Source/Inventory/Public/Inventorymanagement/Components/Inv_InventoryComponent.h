@@ -27,12 +27,13 @@ public:
 	UFUNCTION(BlueprintCallable,BlueprintAuthorityOnly,Category= "Inventory")
 	void TryAddItem(UInv_ItemComponent* ItemComponent);
 
+	//-----------------------与服务器沟通交互------------------------------------//
 	UFUNCTION(Server,Reliable)
 	void Server_AddNewItem(UInv_ItemComponent* ItemComponent,int32 StackCount);
 
 	UFUNCTION(Server,Reliable)
 	void Server_AddStacksToItem(UInv_ItemComponent* ItemComponent,int32 StackCount,int32 Remainder);
-	
+	//-----------------------------------------------------------------------//
 	void ToggleInventoryMenu();
 	void AddRepSubobj(UObject* SObject);
 	
