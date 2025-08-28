@@ -4,11 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Util/GridIndexing3.h"
 #include "Inv_SlottedItem.generated.h"
 
 class UInv_InventoryItem;
 class UImage;
 class UTextBlock;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FSlottedItemClicked,int32,GridIndex,const FPointerEvent&,MouseEvent);
 /**
  * 
  */
@@ -18,6 +21,8 @@ class INVENTORY_API UInv_SlottedItem : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	virtual FReply NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	
 	// 是否可重叠
 	bool IsStackable() const {return bIsStackable;}
 	// 设置是否可重叠
@@ -40,6 +45,9 @@ public:
 	void SetImageBrush (const FSlateBrush& Brush) const;
 	// 更新存储数量
 	void UpdateStackCount(int32 StackCount);
+
+	FSlottedItemClicked OnSlottedItemClicked;
+	
 private:
 	
 	UPROPERTY(meta=(BindWidget))

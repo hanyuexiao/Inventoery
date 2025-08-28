@@ -22,9 +22,11 @@ public:
 	
 	FString GetPickupMessage() const {return PickupMessage;}
 
-	
+	void PickedUp();
 protected:
-	
+
+	UFUNCTION(BlueprintImplementableEvent,Category="Inventory")
+	void OnPickedUp();
 public:	
 
 private:

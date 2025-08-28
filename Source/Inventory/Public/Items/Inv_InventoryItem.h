@@ -33,11 +33,16 @@ public:
 	
 	FInv_ItemManifest& GetItemManifestMutable() {return ItemManifest.GetMutable<FInv_ItemManifest>();}
 	bool IsStackable() const;
+	int32 GetTotalStackCount() const {return TotalStackCount;}
+	void SetTotalStackCount(int32 Count) {TotalStackCount = Count;}
 private:
 	// FInstancedStruct是什么？ 什么时候会想到使用FInstancedStruct
 	// 与TSubclassOf有什么区别
 	UPROPERTY(VisibleAnywhere,meta = (BaseStruct = "/Script/Inventory.Inv_ItemManifest"),Replicated)
 	FInstancedStruct ItemManifest;
+
+	UPROPERTY(Replicated)
+	int32 TotalStackCount{0};
 };
 
 template <typename FragmentType>

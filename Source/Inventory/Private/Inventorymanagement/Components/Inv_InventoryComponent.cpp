@@ -8,6 +8,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Widgets/Inventory/InventoryBase/Inv_InventoryBase.h"
 #include "Items/Inv_InventoryItem.h"
+#include "Items/Fragments/Inv_ItemFragment.h"
 
 
 UInv_InventoryComponent::UInv_InventoryComponent() : InventoryList(this)
@@ -46,6 +47,7 @@ void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 	{
 		//Add stacks to an item that already exists in the inventory.We only want to update the stack count.
 		//not creat a new item of this type
+		OnStackChange.Broadcast(Result);
 		Server_AddStacksToItem(ItemComponent,Result.TotalRoomToFill,Result.Remainder);
 	}
 	else if (Result.TotalRoomToFill > 0)
@@ -60,7 +62,8 @@ void UInv_InventoryComponent::TryAddItem(UInv_ItemComponent* ItemComponent)
 void UInv_InventoryComponent::Server_AddNewItem_Implementation(UInv_ItemComponent* ItemComponent, int32 StackCount)
 {
 	UInv_InventoryItem* NewItem  = InventoryList.AddEntry(ItemComponent);
-
+	NewItem->SetTotalStackCount(StackCount);
+	
 	// NM_ListenServer 和 NM_Standalone都是什么？
 	if (GetOwner() -> GetNetMode() == NM_ListenServer || GetOwner() -> GetNetMode() == NM_Standalone)
 	{
@@ -68,12 +71,27 @@ void UInv_InventoryComponent::Server_AddNewItem_Implementation(UInv_ItemComponen
 	}
 	
 	//TODO: Tell the Item Component to destroy its owning actor.
+	ItemComponent->PickedUp();
 }
 
-void UInv_InventoryComponent::Server_AddStacksToItem_Implementation(UInv_ItemComponent* ItemComponent, int32 StackCount,
-	int32 Remainder)
+void UInv_InventoryComponent::Server_AddStacksToItem_Implementation(UInv_ItemComponent* ItemComponent, int32 StackCount,int32 Remainder)
 {
-	
+	const FGameplayTag& ItemType = IsValid(ItemComponent) ? ItemComponent->GetItemManifest().GetItemType() : FGameplayTag::EmptyTag;
+	UInv_InventoryItem* Item = InventoryList.FindFirstItemByType(ItemType);
+	if (!IsValid(Item)) return;
+
+	Item->SetTotalStackCount(Item->GetTotalStackCount() + StackCount);
+
+	//TODO : Destory the Item if the remainder is zero
+	//Otherwise,update the stack count for the item pickup
+	if (Remainder == 0)
+	{
+		ItemComponent->PickedUp();
+	}
+	else if (FInv_StackableFragment* StackableFragment = ItemComponent->GetItemManifest().GetFragmentOfTypeMultable<FInv_StackableFragment>())
+	{
+		StackableFragment->SetStackCount(Remainder);
+	}
 }
 
 void UInv_InventoryComponent::BeginPlay()
