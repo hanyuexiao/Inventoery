@@ -28,7 +28,7 @@ void UInv_InventoryGrid::NativeOnInitialized()
 	InventoryComponent = UInv_InventoryStatics::GetInventoryComponent(GetOwningPlayer());
 	InventoryComponent->OnItemAdded.AddDynamic(this,&ThisClass::AddItem);
 	InventoryComponent->OnStackChange.AddDynamic(this,&ThisClass::AddStacks);
-	
+	InventoryComponent->OnInventoryMenuToggled.AddDynamic(this, &ThisClass::OnInventoryMenuToggled);
 }
 
 void UInv_InventoryGrid::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
@@ -272,12 +272,12 @@ FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const UInv_ItemCo
 	return HasRoomForItem(ItemComponent->GetItemManifest());
 }
 
-FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const UInv_InventoryItem* Item)
+FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const UInv_InventoryItem* Item, const int32 StackAmountOverride)
 {
-	return HasRoomForItem(Item->GetItemManifest());
+	return HasRoomForItem(Item->GetItemManifest(), StackAmountOverride);
 }
 
-FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const FInv_ItemManifest& Manifest)
+FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const FInv_ItemManifest& Manifest, const int32 StackAmountOverride)
 {
 	FInv_SlotAvailabilityResult Result;
 	
@@ -288,7 +288,10 @@ FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const FInv_ItemMa
 	// Determine how many stacks to add.
 	const int32 MaxStackSize = StackableFragment ? StackableFragment->GetMaxStackSize() : 1;
 	int32 AmountToFill = StackableFragment ? StackableFragment -> GetStackCount() : 1;
-
+	if (StackAmountOverride != -1 && Result.bStackable)
+	{
+		AmountToFill = StackAmountOverride;
+	}
 	
 	TSet<int32> CheckedIndices;
 	
@@ -670,8 +673,12 @@ void UInv_InventoryGrid::OnSlottedItemClicked(int32 GridIndex, const FPointerEve
 		}
 	}
 	
-	// Swap with the hover item.
-	SwapWithHoverItem(ClickedInventoryItem, GridIndex);
+	// Make sure wee can swap with a valid item 
+	if (CurrentQueryResult.ValidItem.IsValid())
+	{
+		// Swap with the hover item.
+		SwapWithHoverItem(ClickedInventoryItem, GridIndex);
+	}
 }
 
 bool UInv_InventoryGrid::ShouldFillInStack(const int32 RoomInClickedSlot, const int32 HoveredStackCount) const
@@ -1058,4 +1065,28 @@ bool UInv_InventoryGrid::HasHoverItem() const
 UInv_HoverItem* UInv_InventoryGrid::GetHoverItem() const
 {
 	return HoverItem;
+}
+
+void UInv_InventoryGrid::OnHide()
+{
+	PutHoverItemBack();
+}
+
+void UInv_InventoryGrid::PutHoverItemBack()
+{
+	if (!IsValid(HoverItem)) return;
+
+	FInv_SlotAvailabilityResult Result = HasRoomForItem(HoverItem->GetInventoryItem(), HoverItem->GetStackCount());
+	Result.Item = HoverItem->GetInventoryItem();
+
+	AddStacks(Result);
+	ClearHoverItem();
+}
+
+void UInv_InventoryGrid::OnInventoryMenuToggled(bool bOpen)
+{
+	if (!bOpen)
+	{
+		PutHoverItemBack();
+	}
 }

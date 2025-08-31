@@ -15,6 +15,8 @@ class UInv_InventoryBase;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInventoryItemChange,UInv_InventoryItem*,Item);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FNoRoomInInventory);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FStackChange,const FInv_SlotAvailabilityResult&,Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FItemEquipStatusChanged, UInv_InventoryItem*, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInventoryMenuToggled, bool, bOpen);
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent),Blueprintable)
 class INVENTORY_API UInv_InventoryComponent : public UActorComponent
@@ -41,6 +43,12 @@ public:
 
 	UFUNCTION(Server, Reliable)
 	void Server_ConsumeItem(UInv_InventoryItem* Item);
+
+	UFUNCTION(Server, Reliable)
+	void Server_EquipSlotClicked(UInv_InventoryItem* ItemToEquip, UInv_InventoryItem* ItemToUnequip);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_EquipSlotClicked(UInv_InventoryItem* ItemToEquip, UInv_InventoryItem* ItemToUnequip);
 	//-----------------------------------------------------------------------//
 	void ToggleInventoryMenu();
 	void AddRepSubobj(UObject* SObject);
@@ -51,7 +59,9 @@ public:
 	FInventoryItemChange OnItemRemoved;
 	FNoRoomInInventory NoRoomInInventory;
 	FStackChange OnStackChange;
-	
+	FItemEquipStatusChanged OnItemEquipped;
+	FItemEquipStatusChanged OnItemUnequipped;
+	FInventoryMenuToggled OnInventoryMenuToggled;
 protected:
 	virtual void BeginPlay() override;
 

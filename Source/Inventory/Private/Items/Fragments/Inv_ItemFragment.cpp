@@ -5,6 +5,7 @@
 #include "Widgets/Composite/Inv_Leaf_Text.h"
 #include "Windows/WindowsApplication.h"
 #include "Widgets/Composite/Inv_Leaf_LabeledValue.h"
+#include "EquipmentManagement/EquipActor/Inv_EquipActor.h"
 
 void FInv_InventoryItemFragment::Assimilate(UInv_CompositeBase* Composite) const
 {
@@ -36,14 +37,77 @@ void FInv_HealthPotionFragment::OnConsume(APlayerController* PC)
 	// or get the Ability System Component and apply a Gameplay Effect
 	// or call an interface function for Healing()
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Health Potion consumed! Healing by: %f"), GetValue()));
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		5.f,
+		FColor::Green,
+		FString::Printf(TEXT("Health Potion consumed! Healing by: %f"),
+			GetValue()));
 }
 
 void FInv_ManaPotionFragment::OnConsume(APlayerController* PC)
 {
 	// Replenish mana however you wish
 
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::Printf(TEXT("Mana Potion consumed! Mana replenished by: %f"), GetValue()));
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		5.f,
+		FColor::Blue,
+		FString::Printf(TEXT("Mana Potion consumed! Mana replenished by: %f"),
+			GetValue()));
+}
+
+
+void FInv_StrengthModifier::OnEquip(APlayerController* PC)
+{
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		5.f,
+		FColor::Green,
+		FString::Printf(TEXT("Strength increased by: %f"),
+			GetValue()));
+}
+
+void FInv_StrengthModifier::OnUnequip(APlayerController* PC)
+{
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		5.f,
+		FColor::Red,
+		FString::Printf(TEXT("Item unequipped. Strength decreased by: %f"),
+			GetValue()));
+}
+
+void FInv_EquipmentFragment::OnEquip(APlayerController* PC)
+{
+	if (bEquipped) return;
+	bEquipped = true;
+	for (auto& Modifier : EquipModifiers)
+	{
+		auto& ModRef = Modifier.GetMutable();
+		ModRef.OnEquip(PC);
+	}
+}
+
+void FInv_EquipmentFragment::OnUnequip(APlayerController* PC)
+{
+	if (!bEquipped) return;
+	bEquipped = false;
+	for (auto& Modifier : EquipModifiers)
+	{
+		auto& ModRef = Modifier.GetMutable();
+		ModRef.OnUnequip(PC);
+	}
+}
+
+void FInv_EquipmentFragment::Assimilate(UInv_CompositeBase* Composite) const
+{
+	FInv_InventoryItemFragment::Assimilate(Composite);
+	for (const auto& Modifier : EquipModifiers)
+	{
+		const auto& ModRef = Modifier.Get();
+		ModRef.Assimilate(Composite);
+	}
 }
 
 void FInv_TextFragment::Assimilate(UInv_CompositeBase* Composite) const
@@ -112,4 +176,39 @@ void FInv_ConsumableFragment::Manifest()
 		auto& ModRef = Modifier.GetMutable();
 		ModRef.Manifest();
 	}
+}
+
+
+void FInv_EquipmentFragment::Manifest()
+{
+	FInv_InventoryItemFragment::Manifest();
+	for (auto& Modifier : EquipModifiers)
+	{
+		auto& ModRef = Modifier.GetMutable();
+		ModRef.Manifest();
+	}
+}
+
+
+AInv_EquipActor* FInv_EquipmentFragment::SpawnAttachedActor(USkeletalMeshComponent* AttachMesh) const
+{
+	if (!IsValid(EquipActorClass) || !IsValid(AttachMesh)) return nullptr;
+
+	AInv_EquipActor* SpawnedActor = AttachMesh->GetWorld()->SpawnActor<AInv_EquipActor>(EquipActorClass);
+	SpawnedActor->AttachToComponent(AttachMesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, SocketAttachPoint);
+
+	return SpawnedActor;
+}
+
+void FInv_EquipmentFragment::DestroyAttachedActor() const
+{
+	if (EquippedActor.IsValid())
+	{
+		EquippedActor->Destroy();
+	}
+}
+
+void FInv_EquipmentFragment::SetEquippedActor(AInv_EquipActor* EquipActor)
+{
+	EquippedActor = EquipActor;
 }

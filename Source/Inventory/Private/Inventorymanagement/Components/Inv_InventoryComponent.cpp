@@ -169,6 +169,7 @@ void UInv_InventoryComponent::ToggleInventoryMenu()
 	{
 		OpenInventoryMenu();
 	}
+	OnInventoryMenuToggled.Broadcast(bInventoryMenuOpen);
 }
 
 void UInv_InventoryComponent::AddRepSubobj(UObject* SubObj)
@@ -221,7 +222,17 @@ void UInv_InventoryComponent::CloseInventoryMenu()
 	OwningController->SetShowMouseCursor(false);
 }
 
+void UInv_InventoryComponent::Server_EquipSlotClicked_Implementation(UInv_InventoryItem* ItemToEquip, UInv_InventoryItem* ItemToUnequip)
+{
+	Multicast_EquipSlotClicked(ItemToEquip, ItemToUnequip);
+}
 
+void UInv_InventoryComponent::Multicast_EquipSlotClicked_Implementation(UInv_InventoryItem* ItemToEquip, UInv_InventoryItem* ItemToUnequip)
+{
+	// Equipment Component will listen to these delegates
+	OnItemEquipped.Broadcast(ItemToEquip);
+	OnItemUnequipped.Broadcast(ItemToUnequip);
+}
 
 
 

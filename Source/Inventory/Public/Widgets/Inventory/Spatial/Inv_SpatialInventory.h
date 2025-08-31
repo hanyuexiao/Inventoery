@@ -8,6 +8,8 @@
 #include "Widgets/Inventory/InventoryBase/Inv_InventoryBase.h"
 #include "Inv_SpatialInventory.generated.h"
 
+struct FGameplayTag;
+class UInv_EquippedGridSlot;
 class UButton;
 class UInv_ItemDescription;
 class UInv_InventoryGrid;
@@ -30,6 +32,7 @@ public:
 	virtual bool HasHoverItem() const override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual UInv_HoverItem* GetHoverItem() const override;
+	virtual float GetTileSize() const override;
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<UInv_EquippedGridSlot>> EquippedGridSlots;
@@ -84,6 +87,9 @@ private:
 
 	UFUNCTION()
 	void EquippedGridSlotClicked(UInv_EquippedGridSlot* EquippedGridSlot, const FGameplayTag& EquipmentTypeTag);
+
+	UFUNCTION()
+	void EquippedSlottedItemClicked(UInv_EquippedSlottedItem* EquippedSlottedItem);
 	
 	void DisableButton(UButton* Button);
 
@@ -91,5 +97,15 @@ private:
 
 	void SetItemDescriptionSizeAndPosition(UInv_ItemDescription* Description, UCanvasPanel* Canvas) const;
 
+	bool CanEquipHoverItem(UInv_EquippedGridSlot* EquippedGridSlot, const FGameplayTag& EquipmentTypeTag) const;
+
+	UInv_EquippedGridSlot* FindSlotWithEquippedItem(UInv_InventoryItem* EquippedItem) const;
+
+	void ClearSlotOfItem(UInv_EquippedGridSlot* EquippedGridSlot);
 	
+	void RemoveEquippedSlottedItem(UInv_EquippedSlottedItem* EquippedSlottedItem);
+
+	void MakeEquippedSlottedItem(UInv_EquippedSlottedItem* EquippedSlottedItem, UInv_EquippedGridSlot* EquippedGridSlot, UInv_InventoryItem* ItemToEquip);
+
+	void BroadcastSlotClickedDelegates(UInv_InventoryItem* ItemToEquip, UInv_InventoryItem* ItemToUnequip) const;
 };

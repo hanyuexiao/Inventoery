@@ -11,6 +11,7 @@ class UInv_ItemComponent;
 enum class EInv_ItemCategory : uint8;
 class UInv_InventoryComponent;
 class UInv_HoverItem;
+class UInv_InventoryBase;
 /**
  * 
  */
@@ -38,7 +39,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Inventory")
 	static UInv_HoverItem* GetHoverItem(APlayerController* PC);
-	
+
+	static UInv_InventoryBase* GetInventoryWidget(APlayerController* PC);
 };
 
 template<typename T , typename FuncT>
