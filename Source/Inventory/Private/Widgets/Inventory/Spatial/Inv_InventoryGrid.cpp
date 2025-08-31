@@ -17,6 +17,7 @@
 #include "Widgets/Inventory/HoverItem/Inv_HoverItem.h"
 #include "Widgets/Inventory/SlottedItems/Inv_SlottedItem.h"
 #include "Widgets/Utils/Inv_WidgetUtils.h"
+#include "Widgets/ItemPopUp/Inv_ItemPopUp.h"
 
 void UInv_InventoryGrid::NativeOnInitialized()
 {
@@ -290,6 +291,40 @@ FInv_SlotAvailabilityResult UInv_InventoryGrid::HasRoomForItem(const FInv_ItemMa
 
 	
 	TSet<int32> CheckedIndices;
+	
+	// --- 新增逻辑：优先叠加到现有物品上 ---
+	if (Result.bStackable)
+	{
+		for (const auto& GridSlot : GridSlots)
+		{
+			if (AmountToFill == 0) break;
+			if (IsIndexClaimed(CheckedIndices, GridSlot->GetIndex())) continue;
+
+			// 检查这个格子是否有物品，以及是否是同类型的可叠加物品
+			if (HasValidItem(GridSlot) && IsUpperLeftSlot(GridSlot, GridSlot) && DoesItemTypeMatch(GridSlot->GetInventoryItem().Get(), Manifest.GetItemType()))
+			{
+				const int32 AmountToFillInSlot = DetermineFillAmountForSlot(true, MaxStackSize, AmountToFill, GridSlot);
+				if (AmountToFillInSlot > 0)
+				{
+					CheckedIndices.Add(GridSlot->GetIndex());
+					Result.TotalRoomToFill += AmountToFillInSlot;
+					Result.SlotAvailabilities.Emplace(
+						FInv_SlotAvaliability
+						{
+							GridSlot->GetUpperLeftIndex(),
+							AmountToFillInSlot,
+							true
+						}
+					);
+					AmountToFill -= AmountToFillInSlot;
+					Result.Remainder = AmountToFill;
+
+					if (AmountToFill == 0) return Result;
+				}
+			}
+		}
+	}
+	
 	// For each Grid Slot:
 	for (const auto& GridSlot : GridSlots)
 	{
@@ -582,6 +617,7 @@ void UInv_InventoryGrid::AddStacks(const FInv_SlotAvailabilityResult& Result)
 
 void UInv_InventoryGrid::OnSlottedItemClicked(int32 GridIndex, const FPointerEvent& MouseEvent)
 {
+	UInv_InventoryStatics::ItemUnhovered(GetOwningPlayer());	
 	check(GridSlots.IsValidIndex(GridIndex));
 	UInv_InventoryItem* ClickedInventoryItem = GridSlots[GridIndex] -> GetInventoryItem().Get();
 
@@ -591,6 +627,12 @@ void UInv_InventoryGrid::OnSlottedItemClicked(int32 GridIndex, const FPointerEve
 		return;
 	}
 
+	if (IsRightClick(MouseEvent))
+	{
+		CreateItemPopUp(GridIndex);
+		return;
+	}
+	
 	// Do the hovered item and the clicked inventory item share a type, and are they stackable?
 	if (IsSameStackable(ClickedInventoryItem))
 	{
@@ -893,6 +935,61 @@ void UInv_GridSlot::NativeOnMouseEnter(const FGeometry& MyGeometry, const FPoint
 	GridSlotHovered.Broadcast(TileIndex, MouseEvent);
 }
 
+void UInv_InventoryGrid::CreateItemPopUp(const int32 GridIndex)
+{
+	UInv_InventoryItem* RightClickedItem = GridSlots[GridIndex]->GetInventoryItem().Get();
+	if (!IsValid(RightClickedItem)) return;
+	if (IsValid(GridSlots[GridIndex]->GetItemPopUp())) return;
+	
+	ItemPopUp = CreateWidget<UInv_ItemPopUp>(this, ItemPopUpClass);
+	GridSlots[GridIndex]->SetItemPopUp(ItemPopUp);
+	
+	OwningCanvasPanel->AddChild(ItemPopUp);
+	UCanvasPanelSlot* CanvasSlot = UWidgetLayoutLibrary::SlotAsCanvasSlot(ItemPopUp);
+	const FVector2D MousePosition = UWidgetLayoutLibrary::GetMousePositionOnViewport(GetOwningPlayer());
+	CanvasSlot->SetPosition(MousePosition - ItemPopUpOffset);
+	CanvasSlot->SetSize(ItemPopUp->GetBoxSize());
+
+	const int32 SliderMax = GridSlots[GridIndex]->GetStackCount() - 1;
+	if (RightClickedItem->IsStackable() && SliderMax > 0)
+	{
+		ItemPopUp->OnSplit.BindDynamic(this, &ThisClass::OnPopUpMenuSplit);
+		ItemPopUp->SetSliderParams(SliderMax, FMath::Max(1, GridSlots[GridIndex]->GetStackCount() / 2));
+	}
+	else
+	{
+		ItemPopUp->CollapseSplitButton();
+	}
+
+	ItemPopUp->OnDrop.BindDynamic(this, &ThisClass::OnPopUpMenuDrop);
+
+	if (RightClickedItem->IsConsumable())
+	{
+		ItemPopUp->OnConsume.BindDynamic(this, &ThisClass::OnPopUpMenuConsume);
+	}
+	else
+	{
+		ItemPopUp->CollapseConsumeButton();
+	}
+}
+
+void UInv_InventoryGrid::DropItem()
+{
+	if (!IsValid(HoverItem)) return;
+	if (!IsValid(HoverItem->GetInventoryItem())) return;
+
+	//Tell the server to actually drop the item
+	InventoryComponent->Server_DropItem(HoverItem->GetInventoryItem(), HoverItem->GetStackCount());
+	
+	ClearHoverItem();
+	ShowCursor();
+}
+
+void UInv_InventoryGrid::SetOwningCanvas(UCanvasPanel* OwningCanvas)
+{
+	OwningCanvasPanel = OwningCanvas;
+}
+
 void UInv_GridSlot::NativeOnMouseLeave(const FPointerEvent& MouseEvent)
 {
 	Super::NativeOnMouseLeave(MouseEvent);
@@ -905,4 +1002,60 @@ FReply UInv_GridSlot::NativeOnMouseButtonDown(const FGeometry& MyGeometry, const
 	return FReply::Handled();
 }
 
+void UInv_InventoryGrid::OnPopUpMenuSplit(int32 SplitAmount, int32 Index)
+{
+	UInv_InventoryItem* RightClickedItem = GridSlots[Index]->GetInventoryItem().Get();
+	if (!IsValid(RightClickedItem)) return;
+	if (!RightClickedItem->IsStackable()) return;
 
+	const int32 UpperLeftIndex = GridSlots[Index]->GetUpperLeftIndex();
+	UInv_GridSlot* UpperLeftGridSlot = GridSlots[UpperLeftIndex];
+	const int32 StackCount = UpperLeftGridSlot->GetStackCount();
+	const int32 NewStackCount = StackCount - SplitAmount;
+
+	UpperLeftGridSlot->SetStackCount(NewStackCount);
+	SlottedItems.FindChecked(UpperLeftIndex)->UpdateStackCount(NewStackCount);
+
+	AssignHoverItem(RightClickedItem, UpperLeftIndex, UpperLeftIndex);
+	HoverItem->UpdateStackCount(SplitAmount);
+}
+
+void UInv_InventoryGrid::OnPopUpMenuDrop(int32 Index)
+{
+	UInv_InventoryItem* RightClickedItem = GridSlots[Index]->GetInventoryItem().Get();
+	if (!IsValid(RightClickedItem)) return;
+
+	PickUp(RightClickedItem, Index);
+	DropItem();
+}
+
+void UInv_InventoryGrid::OnPopUpMenuConsume(int32 Index)
+{
+	UInv_InventoryItem* RightClickedItem = GridSlots[Index]->GetInventoryItem().Get();
+	if (!IsValid(RightClickedItem)) return;
+
+	const int32 UpperLeftIndex = GridSlots[Index]->GetUpperLeftIndex();
+	UInv_GridSlot* UpperLeftGridSlot = GridSlots[UpperLeftIndex];
+	const int32 NewStackCount = UpperLeftGridSlot->GetStackCount() - 1;
+
+	UpperLeftGridSlot->SetStackCount(NewStackCount);
+	SlottedItems.FindChecked(UpperLeftIndex)->UpdateStackCount(NewStackCount);
+
+	//Tell the server we're consuming an item
+	InventoryComponent->Server_ConsumeItem(RightClickedItem);
+	
+	if (NewStackCount <= 0)
+	{
+		RemoveItemFromGrid(RightClickedItem, Index);
+	}
+}
+
+bool UInv_InventoryGrid::HasHoverItem() const
+{
+	return IsValid(HoverItem);
+}
+
+UInv_HoverItem* UInv_InventoryGrid::GetHoverItem() const
+{
+	return HoverItem;
+}

@@ -7,6 +7,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Inv_GridSlot.generated.h"
 
+class UInv_ItemPopUp;
 class UInv_InventoryItem;
 class UImage;
 
@@ -46,6 +47,8 @@ public:
 	void SetUpperLeftIndex(int32 Index) {UpperLeftIndex = Index;}
 	bool IsAvailable() const {return bAvailable;}
 	void SetAvailable(bool bIsAvailable) {bAvailable = bIsAvailable;}
+	void SetItemPopUp(UInv_ItemPopUp* PopUp);
+	UInv_ItemPopUp* GetItemPopUp() const;
 	
 	void SetOccupiedTexture();
 	void SetUnoccupiedTexture();
@@ -57,12 +60,13 @@ public:
 	FGridSlotEvent GridSlotUnhovered;
 	
 private:
-	
-	int32 TileIndex{INDEX_NONE};
 	int32 StackCount{0};
+	bool bAvailable{true};
+	int32 TileIndex{INDEX_NONE};
 	int32 UpperLeftIndex{INDEX_NONE};
 	TWeakObjectPtr<UInv_InventoryItem> InventoryItem;
-	bool bAvailable{true};
+	TWeakObjectPtr<UInv_ItemPopUp> ItemPopUp;
+	
 	
 	UPROPERTY(meta=(BindWidget))
 	TObjectPtr<UImage> Image_GridSlot;
@@ -81,7 +85,8 @@ private:
 
 	EInv_GridSlotState GridSlotState;
 
-
+	UFUNCTION()
+	void OnItemPopUpDestruct(UUserWidget* Menu);
 };
 
 

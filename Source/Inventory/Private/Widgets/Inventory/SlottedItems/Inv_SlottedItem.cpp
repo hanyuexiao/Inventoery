@@ -6,6 +6,7 @@
 
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
+#include "InventoryManagement/Utils/Inv_InventoryStatics.h"
 
 FReply UInv_SlottedItem::NativeOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
@@ -34,4 +35,14 @@ void UInv_SlottedItem::UpdateStackCount(int32 StackCount)
 	{
 		Text_StackCount->SetVisibility(ESlateVisibility::Collapsed);
 	}
+}
+
+void UInv_SlottedItem::NativeOnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	UInv_InventoryStatics::ItemHovered(GetOwningPlayer(), InventoryItem.Get());
+}
+
+void UInv_SlottedItem::NativeOnMouseLeave(const FPointerEvent& MouseEvent)
+{
+	UInv_InventoryStatics::ItemUnhovered(GetOwningPlayer());
 }

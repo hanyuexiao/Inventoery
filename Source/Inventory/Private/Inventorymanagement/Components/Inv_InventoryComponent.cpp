@@ -88,7 +88,7 @@ void UInv_InventoryComponent::Server_AddStacksToItem_Implementation(UInv_ItemCom
 	{
 		ItemComponent->PickedUp();
 	}
-	else if (FInv_StackableFragment* StackableFragment = ItemComponent->GetItemManifest().GetFragmentOfTypeMultable<FInv_StackableFragment>())
+	else if (FInv_StackableFragment* StackableFragment = ItemComponent->GetItemManifest().GetFragmentOfTypeMutable<FInv_StackableFragment>())
 	{
 		StackableFragment->SetStackCount(Remainder);
 	}
@@ -99,6 +99,64 @@ void UInv_InventoryComponent::BeginPlay()
 	Super::BeginPlay();
 
 	ConstructInventory();
+}
+
+void UInv_InventoryComponent::Server_DropItem_Implementation(UInv_InventoryItem* Item, int32 StackCount)
+{
+	const int32 NewStackCount = Item->GetTotalStackCount() - StackCount;
+	if (NewStackCount <= 0)
+	{
+		InventoryList.RemoveEntry(Item);
+	}
+	else
+	{
+		Item->SetTotalStackCount(NewStackCount);
+	}
+
+	SpawnDroppedItem(Item, StackCount);
+}
+
+
+void UInv_InventoryComponent::Server_ConsumeItem_Implementation(UInv_InventoryItem* Item)
+{
+	const int32 NewStackCount = Item->GetTotalStackCount() - 1;
+	if (NewStackCount <= 0)
+	{
+		InventoryList.RemoveEntry(Item);
+	}
+	else
+	{
+		Item->SetTotalStackCount(NewStackCount);
+	}
+
+	// Get the consumable fragment and call Consume()
+	// (Actually create the Consumable Fragement)
+	
+	if (FInv_ConsumableFragment* ConsumableFragment = Item->GetItemManifestMutable().GetFragmentOfTypeMutable<FInv_ConsumableFragment>())
+	{
+		ConsumableFragment->OnConsume(OwningController.Get());
+	}
+}
+
+
+void UInv_InventoryComponent::SpawnDroppedItem(UInv_InventoryItem* Item, int32 StackCount)
+{
+	
+	//Spawn the dropped item in the level
+	const APawn* OwningPawn = OwningController->GetPawn();
+	FVector RotatedForward = OwningPawn->GetActorForwardVector();
+	RotatedForward = RotatedForward.RotateAngleAxis(FMath::FRandRange(DropSpawnAngleMin, DropSpawnAngleMax), FVector::UpVector);
+	FVector SpawnLocation = OwningPawn->GetActorLocation() + RotatedForward * FMath::FRandRange(DropSpawnDistanceMin, DropSpawnDistanceMax);
+	SpawnLocation.Z -= RelativeSpawnElevation;
+	const FRotator SpawnRotation = FRotator::ZeroRotator;
+
+	// TODO: Have the Item Manifest spawn the pickup actor.
+	FInv_ItemManifest& ItemManifest = Item->GetItemManifestMutable();
+	if (FInv_StackableFragment* StackableFragment = ItemManifest.GetFragmentOfTypeMutable<FInv_StackableFragment>())
+	{
+		StackableFragment->SetStackCount(StackCount);
+	}
+	ItemManifest.SpawnPickupActor(this, SpawnLocation, SpawnRotation);
 }
 
 void UInv_InventoryComponent::ToggleInventoryMenu()

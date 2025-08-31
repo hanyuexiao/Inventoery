@@ -10,6 +10,7 @@
 class UInv_ItemComponent;
 enum class EInv_ItemCategory : uint8;
 class UInv_InventoryComponent;
+class UInv_HoverItem;
 /**
  * 
  */
@@ -28,6 +29,16 @@ public:
 
 	template<typename T , typename FuncT>
 	static void ForEach2D(TArray<T>& Array,int32 Index,const FIntPoint& Range2D,int32 GridColumns,const FuncT& Function);
+	
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	static void ItemHovered(APlayerController* PC, UInv_InventoryItem* Item);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	static void ItemUnhovered(APlayerController* PC);
+
+	UFUNCTION(BlueprintCallable, Category = "Inventory")
+	static UInv_HoverItem* GetHoverItem(APlayerController* PC);
+	
 };
 
 template<typename T , typename FuncT>
@@ -46,3 +57,4 @@ void UInv_InventoryStatics::ForEach2D(TArray<T>& Array,int32 Index,const FIntPoi
 		}
 	}
 }
+

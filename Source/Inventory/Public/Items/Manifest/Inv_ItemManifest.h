@@ -17,18 +17,20 @@
 struct FInv_ItemFragment;
 enum class EInv_ItemCategory : uint8;
 class UInv_InventoryItem;
-
+class UInv_CompositeBase;
 
 USTRUCT(BlueprintType)
 struct INVENTORY_API FInv_ItemManifest
 {
 	GENERATED_BODY()
 
+	TArray<TInstancedStruct<FInv_ItemFragment>>& GetFragmentsMutable() { return Fragments;}
 	UInv_InventoryItem* Manifest(UObject* NewOuter);
 	
 	EInv_ItemCategory GetItemCategory() const {return ItemCategory;}
 	FGameplayTag GetItemType() const {return ItemType;}
-
+	void AssimilateInventoryFragments(UInv_CompositeBase* Composite) const;
+	
 	template<typename T> requires std::derived_from<T, FInv_ItemFragment>
 	const T* GetFragmentOfTypeWithTag(const FGameplayTag& FragmentTag) const;
 
@@ -36,7 +38,13 @@ struct INVENTORY_API FInv_ItemManifest
 	const T* GetFragmentOfType() const;
 
 	template<typename T> requires std::derived_from<T, FInv_ItemFragment>
-	T* GetFragmentOfTypeMultable();
+	T* GetFragmentOfTypeMutable();
+
+	template<typename T> requires std::derived_from<T, FInv_ItemFragment>
+	TArray<const T*> GetAllFragmentsOfType() const;
+	
+	void SpawnPickupActor(const UObject* WorldContextObject, const FVector& SpawnLocation, const FRotator& SpawnRotation);
+	
 private:
 
 	UPROPERTY(EditAnywhere,Category = "Inventory",meta=(ExcludeBaseStruct))
@@ -45,8 +53,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Inventory")
 	EInv_ItemCategory ItemCategory{EInv_ItemCategory::None};
 
-	UPROPERTY(EditAnywhere, Category = "Inventory")
+	UPROPERTY(EditAnywhere, Category = "Inventory", meta = (Categories="GameItems"))
 	FGameplayTag ItemType;
+	
+	UPROPERTY(EditAnywhere, Category = "Inventory")
+	TSubclassOf<AActor> PickupActorClass;
+
+	void ClearFragments();
 };
 
 
@@ -80,7 +93,7 @@ const T* FInv_ItemManifest::GetFragmentOfType() const
 }
 
 template <typename T> requires std::derived_from<T, FInv_ItemFragment>
-T* FInv_ItemManifest::GetFragmentOfTypeMultable()
+T* FInv_ItemManifest::GetFragmentOfTypeMutable()
 {
 	for (TInstancedStruct<FInv_ItemFragment>& Fragment : Fragments)
 	{
@@ -92,4 +105,16 @@ T* FInv_ItemManifest::GetFragmentOfTypeMultable()
 	return nullptr;
 }
 
-
+template <typename T> requires std::derived_from<T, FInv_ItemFragment>
+TArray<const T*> FInv_ItemManifest::GetAllFragmentsOfType() const
+{
+	TArray<const T*> Result;
+	for (const TInstancedStruct<FInv_ItemFragment>& Fragment : Fragments)
+	{
+		if (const T* FragmentPtr = Fragment.GetPtr<T>())
+		{
+			Result.Add(FragmentPtr);
+		}
+	}
+	return Result;
+}
