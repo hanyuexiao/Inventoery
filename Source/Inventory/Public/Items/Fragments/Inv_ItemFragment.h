@@ -248,7 +248,6 @@ struct FInv_StrengthModifier : public FInv_EquipModifier
 	virtual void OnUnequip(APlayerController* PC) override;
 };
 
-
 class AInv_EquipActor;
 USTRUCT(BlueprintType)
 struct FInv_EquipmentFragment : public FInv_InventoryItemFragment
@@ -260,11 +259,12 @@ struct FInv_EquipmentFragment : public FInv_InventoryItemFragment
 	void OnUnequip(APlayerController* PC);
 	virtual void Assimilate(UInv_CompositeBase* Composite) const override;
 	virtual void Manifest() override;
-	
+
 	AInv_EquipActor* SpawnAttachedActor(USkeletalMeshComponent* AttachMesh) const;
 	void DestroyAttachedActor() const;
 	FGameplayTag GetEquipmentType() const { return EquipmentType; }
 	void SetEquippedActor(AInv_EquipActor* EquipActor);
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = "Inventory")
